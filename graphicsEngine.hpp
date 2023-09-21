@@ -1,5 +1,6 @@
 #pragma once
 
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 class GraphicsEngine {
@@ -16,5 +17,8 @@ private:
     const uint32_t height = 480;
     GLFWwindow* window;
 
+    VkInstance instance;
+
     void createWindow();
+    void createInstance();
 };

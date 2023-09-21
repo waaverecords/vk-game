@@ -5,13 +5,15 @@
             "label": "C/C++: g++.exe build active file",
             "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
             "args": [
+                "-DDEBUG_MODE",
                 "-fdiagnostics-color=always",
                 "-g",
                 "${workspaceFolder}/*.cpp",
                 "-o",
                 "${fileDirname}\\build\\${fileBasenameNoExtension}.exe",
                 "-L.",
-                "-lglfw3"
+                "-lglfw3",
+                "-lvulkan-1"
             ],
             "options": {
                 "cwd": "C:\\msys64\\ucrt64\\bin"
