@@ -6,6 +6,7 @@
 GraphicsEngine::GraphicsEngine() {
     createWindow();
     createInstance();
+    selectPhysicalDevice();
 }
 
 void GraphicsEngine::createWindow() {
@@ -57,6 +58,33 @@ void GraphicsEngine::createInstance() {
 
     if (vkCreateInstance(&instInfo, nullptr, &instance) != VK_SUCCESS)
         throw std::runtime_error("Failed to create instance.");
+}
+
+void GraphicsEngine::selectPhysicalDevice() {
+    uint32_t deviceCount;
+
+    if (vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to enumerate physical devices.");
+
+    if (deviceCount == 0)
+        throw std::runtime_error("Failed to find a GPU with Vulkan support.");
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+
+    if (vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to enumerate physical devices.");
+
+    for (auto device : devices) {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            physicalDevice = device;
+            break;
+    }
+
+    if (physicalDevice == VK_NULL_HANDLE)
+        throw std::runtime_error("Failed to select a suitable GPU.");
 }
 
 GraphicsEngine::~GraphicsEngine() {

@@ -18,7 +18,9 @@ private:
     GLFWwindow* window;
 
     VkInstance instance;
+    VkPhysicalDevice physicalDevice;
 
     void createWindow();
     void createInstance();
+    void selectPhysicalDevice();
 };
