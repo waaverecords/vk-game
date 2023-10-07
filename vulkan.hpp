@@ -7,8 +7,9 @@
 
 namespace Vulkan {
 
-    bool layersAreSupported(const std::vector<const char*> layerNames);
-    bool extensionsAreSupported(const std::vector<const char*> extensionNames);
+    bool instanceSupportsLayers(const std::vector<const char*> layerNames);
+    bool instanceSupportsExtensions(const std::vector<const char*> extensionNames);
+    bool deviceSupportsExtensions(const VkPhysicalDevice device, std::vector<const char*> extensionNames);
 
     VkResult createDebugMessengerExtension(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* debugMessengerInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
     void destroyDebugMessengerExtension(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks*allocator);

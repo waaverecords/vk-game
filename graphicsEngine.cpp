@@ -50,7 +50,7 @@ void GraphicsEngine::createInstance() {
         layers.push_back("VK_LAYER_KHRONOS_validation");
     #endif
     
-    if (!Vulkan::layersAreSupported(layers))
+    if (!Vulkan::instanceSupportsLayers(layers))
         throw std::runtime_error("Layers are not supported.");
 
     uint32_t glfwExtensionCount;
@@ -60,7 +60,7 @@ void GraphicsEngine::createInstance() {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     #endif
 
-    if (!Vulkan::extensionsAreSupported(extensions))
+    if (!Vulkan::instanceSupportsExtensions(extensions))
         throw std::runtime_error("Extensions are not supported.");
 
     auto appInfo = VkApplicationInfo{};
@@ -204,11 +204,16 @@ void GraphicsEngine::createDevice() {
         queueInfos.push_back(queueInfo);
     }
 
+    const std::vector<const char*> extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    if (!Vulkan::deviceSupportsExtensions(physicalDevice, extensions))
+        std::runtime_error("The extensions are not supported by the physical device.");
+
     auto deviceInfo = VkDeviceCreateInfo{};
     deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceInfo.queueCreateInfoCount = queueInfos.size();
     deviceInfo.pQueueCreateInfos = queueInfos.data();
-    deviceInfo.enabledExtensionCount = 0;
+    deviceInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    deviceInfo.ppEnabledExtensionNames = extensions.data();
 
     if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
         throw std::runtime_error("Failed to create logical device.");
