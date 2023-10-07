@@ -21,6 +21,11 @@ private:
     VkInstance instance;
     void createInstance();
 
+    VkDebugUtilsMessengerEXT debugMessenger;
+    VkDebugUtilsMessengerCreateInfoEXT getDebugMessengerInfo();
+    void createDebugMessenger();
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData); 
+
     VkPhysicalDevice physicalDevice;
     void pickPhysicalDevice();
 

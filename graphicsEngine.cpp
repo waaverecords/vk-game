@@ -6,12 +6,18 @@
 GraphicsEngine::GraphicsEngine() {
     createWindow();
     createInstance();
+    #ifdef DEBUG_MODE
+        createDebugMessenger();
+    #endif
     pickPhysicalDevice();
     createDevice();
 }
 
 GraphicsEngine::~GraphicsEngine() {
     vkDestroyDevice(device, nullptr);
+    #ifdef DEBUG_MODE
+        Vulkan::destroyDebugMessengerExtension(instance, debugMessenger, nullptr);
+    #endif
     vkDestroyInstance(instance, nullptr);
     glfwTerminate();
 }
@@ -55,16 +61,56 @@ void GraphicsEngine::createInstance() {
     appInfo.pEngineName = "vk-game";
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-    auto instInfo = VkInstanceCreateInfo{};
-    instInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instInfo.pApplicationInfo = &appInfo;
-    instInfo.enabledLayerCount = layers.size();
-    instInfo.ppEnabledLayerNames = layers.data();
-    instInfo.enabledExtensionCount = extensions.size();
-    instInfo.ppEnabledExtensionNames = extensions.data();
+    auto instanceInfo = VkInstanceCreateInfo{};
+    instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    instanceInfo.pApplicationInfo = &appInfo;
+    instanceInfo.enabledLayerCount = layers.size();
+    instanceInfo.ppEnabledLayerNames = layers.data();
+    instanceInfo.enabledExtensionCount = extensions.size();
+    instanceInfo.ppEnabledExtensionNames = extensions.data();
+    #ifdef DEBUG_MODE
+        auto debugMessengerInfo = getDebugMessengerInfo();
+        instanceInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugMessengerInfo;
+    #endif
 
-    if (vkCreateInstance(&instInfo, nullptr, &instance) != VK_SUCCESS)
+    if (vkCreateInstance(&instanceInfo, nullptr, &instance) != VK_SUCCESS)
         throw std::runtime_error("Failed to create instance.");
+}
+
+VkDebugUtilsMessengerCreateInfoEXT GraphicsEngine::getDebugMessengerInfo() {
+    auto debugMessengerInfo = VkDebugUtilsMessengerCreateInfoEXT{};
+    debugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debugMessengerInfo.pfnUserCallback = debugCallback;
+
+    return debugMessengerInfo;
+}
+
+void GraphicsEngine::createDebugMessenger() {
+    auto debugMessengerInfo = getDebugMessengerInfo();
+    if (Vulkan::createDebugMessengerExtension(instance, &debugMessengerInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create debug messenger.");
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+    void* userData
+) {
+    std::string severity = "UNKNOWN";
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+        severity = "VERBOSE";
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+        severity = "INFO";
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        severity = "WARNING";
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        severity = "ERROR";
+
+    std::cerr << severity << " " << callbackData->pMessage << std::endl;
+    return VK_FALSE;
 }
 
 void GraphicsEngine::pickPhysicalDevice() {

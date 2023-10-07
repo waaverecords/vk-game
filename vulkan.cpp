@@ -1,5 +1,4 @@
 #include "vulkan.hpp"
-#include <vulkan/vulkan.h>
 #include <iostream>
 #include <cstring>
 
@@ -53,4 +52,23 @@ bool Vulkan::extensionsAreSupported(const std::vector<const char*> extensionName
     }
 
     return true;
+}
+
+VkResult Vulkan::createDebugMessengerExtension(
+    VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* debugMessengerInfo,
+    const VkAllocationCallbacks* allocator,
+    VkDebugUtilsMessengerEXT* debugMessenger
+) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr)
+        return func(instance, debugMessengerInfo, allocator, debugMessenger);
+        
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void Vulkan::destroyDebugMessengerExtension(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr)
+        func(instance, debugMessenger, allocator);
 }
