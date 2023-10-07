@@ -109,16 +109,30 @@ VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::debugCallback(
     void* userData
 ) {
     std::string severity = "UNKNOWN";
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
-        severity = "VERBOSE";
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
-        severity = "INFO";
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        severity = "WARNING";
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        severity = "ERROR";
 
-    std::cerr << severity << " " << callbackData->pMessage << std::endl;
+    // https://ansi.gabebanks.net/
+    const std::string defaultColor = "\033[0m";
+    std:: string color = defaultColor;
+
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        severity = "VERBOSE";
+        color = defaultColor;
+    }
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        severity = "INFO";
+        color = "\033[36;49m";
+    }
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        severity = "WARNING";
+        color = "\033[33;49m";
+    }
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        severity = "ERROR";
+        color = "\033[36;41m";
+    }
+
+    std::cout << color << severity << " " << callbackData->pMessage << defaultColor << std::endl;
+
     return VK_FALSE;
 }
 
@@ -174,7 +188,7 @@ void GraphicsEngine::createDevice() {
     }
 
     if (!graphicsIndex.has_value() || !presentIndex.has_value())
-        throw std::runtime_error("Failed to find a queue family supporting graphics and present operation.");
+        throw std::runtime_error("Failed to find a queue family supporting graphics and present operations.");
 
     std::set<uint32_t> queueIndices = {graphicsIndex.value(), presentIndex.value()};
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
