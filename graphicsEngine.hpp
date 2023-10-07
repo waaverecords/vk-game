@@ -17,7 +17,7 @@ private:
     const uint32_t height = 480;
     GLFWwindow* window;
     void createWindow();
-    
+
     VkSurfaceKHR surface;
     void createSurface();
 
@@ -34,4 +34,7 @@ private:
 
     VkDevice device;
     void createDevice();
+
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
 };

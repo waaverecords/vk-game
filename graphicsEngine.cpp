@@ -2,6 +2,8 @@
 #include <vector>
 #include <iostream>
 #include "vulkan.hpp"
+#include <optional>
+#include <set>
 
 GraphicsEngine::GraphicsEngine() {
     createWindow();
@@ -154,27 +156,39 @@ void GraphicsEngine::createDevice() {
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
-    int32_t queueFamilyIndex = -1;
+    std::optional<uint32_t> graphicsIndex;
+    std::optional<uint32_t> presentIndex;
+    
     for (auto i = 0; i < queueFamilies.size(); i++) {
         if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            queueFamilyIndex = i;
-            break;
+            graphicsIndex = i;
         }
+        
+        VkBool32 presentSupported = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupported);
+        if (presentSupported)
+            presentIndex = i;
+
+        if (graphicsIndex.has_value() && presentIndex.has_value())
+            break;
     }
 
-    if (queueFamilyIndex < 0)
-        throw std::runtime_error("Failed to find a queue family supporting graphics operation.");
+    if (!graphicsIndex.has_value() || !presentIndex.has_value())
+        throw std::runtime_error("Failed to find a queue family supporting graphics and present operation.");
 
+    std::set<uint32_t> queueIndices = {graphicsIndex.value(), presentIndex.value()};
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
-
     auto queuePriority = 1.0f;
-    auto queueInfo = VkDeviceQueueCreateInfo{};
-    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueInfo.queueFamilyIndex = queueFamilyIndex;
-    queueInfo.queueCount = 1;
-    queueInfo.pQueuePriorities = &queuePriority;
 
-    queueInfos.push_back(queueInfo);
+    for (auto queueIndex : queueIndices) {
+        auto queueInfo = VkDeviceQueueCreateInfo{};
+        queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueInfo.queueFamilyIndex = queueIndex;
+        queueInfo.queueCount = 1;
+        queueInfo.pQueuePriorities = &queuePriority;
+
+        queueInfos.push_back(queueInfo);
+    }
 
     auto deviceInfo = VkDeviceCreateInfo{};
     deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -184,4 +198,7 @@ void GraphicsEngine::createDevice() {
 
     if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
         throw std::runtime_error("Failed to create logical device.");
+
+    vkGetDeviceQueue(device, graphicsIndex.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, presentIndex.value(), 0, &presentQueue);
 }
