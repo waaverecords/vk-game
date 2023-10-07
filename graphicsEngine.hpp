@@ -17,6 +17,9 @@ private:
     const uint32_t height = 480;
     GLFWwindow* window;
     void createWindow();
+    
+    VkSurfaceKHR surface;
+    void createSurface();
 
     VkInstance instance;
     void createInstance();

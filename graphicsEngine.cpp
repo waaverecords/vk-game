@@ -6,6 +6,7 @@
 GraphicsEngine::GraphicsEngine() {
     createWindow();
     createInstance();
+    createSurface();
     #ifdef DEBUG_MODE
         createDebugMessenger();
     #endif
@@ -18,6 +19,7 @@ GraphicsEngine::~GraphicsEngine() {
     #ifdef DEBUG_MODE
         Vulkan::destroyDebugMessengerExtension(instance, debugMessenger, nullptr);
     #endif
+    vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
     glfwTerminate();
 }
@@ -33,6 +35,11 @@ void GraphicsEngine::createWindow() {
         glfwTerminate();
         throw std::runtime_error("Failed to create window.");
     }
+}
+
+void GraphicsEngine::createSurface() {
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create window surface.");
 }
 
 void GraphicsEngine::createInstance() {
