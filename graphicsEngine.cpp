@@ -1,12 +1,19 @@
 #include "graphicsEngine.hpp"
 #include <vector>
 #include <iostream>
-#include "any.hpp"
+#include "vulkan.hpp"
 
 GraphicsEngine::GraphicsEngine() {
     createWindow();
     createInstance();
-    selectPhysicalDevice();
+    pickPhysicalDevice();
+    createDevice();
+}
+
+GraphicsEngine::~GraphicsEngine() {
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    glfwTerminate();
 }
 
 void GraphicsEngine::createWindow() {
@@ -27,18 +34,18 @@ void GraphicsEngine::createInstance() {
     #ifdef DEBUG_MODE
         layers.push_back("VK_LAYER_KHRONOS_validation");
     #endif
-
-    if (!vkGame::layersAreSupported(layers))
+    
+    if (!Vulkan::layersAreSupported(layers))
         throw std::runtime_error("Layers are not supported.");
 
     uint32_t glfwExtensionCount;
     auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
     #ifdef DEBUG_MODE
-        extensions.push_back("VK_EXT_debug_utils");
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     #endif
 
-    if (!vkGame::extensionsAreSupported(extensions))
+    if (!Vulkan::extensionsAreSupported(extensions))
         throw std::runtime_error("Extensions are not supported.");
 
     auto appInfo = VkApplicationInfo{};
@@ -60,7 +67,7 @@ void GraphicsEngine::createInstance() {
         throw std::runtime_error("Failed to create instance.");
 }
 
-void GraphicsEngine::selectPhysicalDevice() {
+void GraphicsEngine::pickPhysicalDevice() {
     uint32_t deviceCount;
 
     if (vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr) != VK_SUCCESS)
@@ -87,7 +94,41 @@ void GraphicsEngine::selectPhysicalDevice() {
         throw std::runtime_error("Failed to select a suitable GPU.");
 }
 
-GraphicsEngine::~GraphicsEngine() {
-    vkDestroyInstance(instance, nullptr);
-    glfwTerminate();
+void GraphicsEngine::createDevice() {
+    uint32_t queueFamilyCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+    int32_t queueFamilyIndex = -1;
+    for (auto i = 0; i < queueFamilies.size(); i++) {
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            queueFamilyIndex = i;
+            break;
+        }
+    }
+
+    if (queueFamilyIndex < 0)
+        throw std::runtime_error("Failed to find a queue family supporting graphics operation.");
+
+    std::vector<VkDeviceQueueCreateInfo> queueInfos;
+
+    auto queuePriority = 1.0f;
+    auto queueInfo = VkDeviceQueueCreateInfo{};
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueInfo.queueFamilyIndex = queueFamilyIndex;
+    queueInfo.queueCount = 1;
+    queueInfo.pQueuePriorities = &queuePriority;
+
+    queueInfos.push_back(queueInfo);
+
+    auto deviceInfo = VkDeviceCreateInfo{};
+    deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceInfo.queueCreateInfoCount = queueInfos.size();
+    deviceInfo.pQueueCreateInfos = queueInfos.data();
+    deviceInfo.enabledExtensionCount = 0;
+
+    if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create logical device.");
 }

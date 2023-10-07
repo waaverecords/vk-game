@@ -16,11 +16,14 @@ private:
     const uint32_t width = 640;
     const uint32_t height = 480;
     GLFWwindow* window;
+    void createWindow();
 
     VkInstance instance;
-    VkPhysicalDevice physicalDevice;
-
-    void createWindow();
     void createInstance();
-    void selectPhysicalDevice();
+
+    VkPhysicalDevice physicalDevice;
+    void pickPhysicalDevice();
+
+    VkDevice device;
+    void createDevice();
 };

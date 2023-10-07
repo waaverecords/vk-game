@@ -1,9 +1,9 @@
-#include "any.hpp"
+#include "vulkan.hpp"
 #include <vulkan/vulkan.h>
 #include <iostream>
 #include <cstring>
 
-bool vkGame::layersAreSupported(const std::vector<const char*> layerNames) {
+bool Vulkan::layersAreSupported(const std::vector<const char*> layerNames) {
     uint32_t propertyCount;
 
     if (vkEnumerateInstanceLayerProperties(&propertyCount, nullptr) != VK_SUCCESS)
@@ -29,7 +29,7 @@ bool vkGame::layersAreSupported(const std::vector<const char*> layerNames) {
     return true;
 }
 
-bool vkGame::extensionsAreSupported(const std::vector<const char*> extensionNames) {
+bool Vulkan::extensionsAreSupported(const std::vector<const char*> extensionNames) {
     uint32_t propertyCount;
 
     if (vkEnumerateInstanceExtensionProperties(nullptr, &propertyCount, nullptr) != VK_SUCCESS)
