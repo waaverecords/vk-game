@@ -1,5 +1,4 @@
 #include "graphicsEngine.hpp"
-#include <vector>
 #include <iostream>
 #include "vulkan.hpp"
 #include <optional>
@@ -15,9 +14,13 @@ GraphicsEngine::GraphicsEngine() {
     pickPhysicalDevice();
     createDevice();
     createSwapchain();
+    createImageViews();
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    for (auto imageView : swapchainImageViews)
+        vkDestroyImageView(device, imageView, nullptr);
+
     vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
     #ifdef DEBUG_MODE
@@ -286,4 +289,34 @@ void GraphicsEngine::createSwapchain() {
 
     if (vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &swapchain) != VK_SUCCESS)
         throw std::runtime_error("Failed to create swap chain.");
+
+    uint32_t swapchainImageCount;
+    if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get swapchain images.");
+
+    swapchainImages.resize(swapchainImageCount);
+    if (vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get swapchain images.");
+
+    swapchainImageFormat = surfaceFormat.format;
+}
+
+void GraphicsEngine::createImageViews() {
+    swapchainImageViews.resize(swapchainImages.size());
+
+    for (auto i = 0; i < swapchainImages.size(); i++) {
+        auto imageViewinfo = VkImageViewCreateInfo{};
+        imageViewinfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewinfo.image = swapchainImages[i];
+        imageViewinfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewinfo.format = swapchainImageFormat;
+        imageViewinfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewinfo.subresourceRange.baseMipLevel = 0;
+        imageViewinfo.subresourceRange.levelCount = 1;
+        imageViewinfo.subresourceRange.baseArrayLayer = 0;
+        imageViewinfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(device, &imageViewinfo, nullptr, &swapchainImageViews[i]) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create image view.");
+    }
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -38,5 +40,10 @@ private:
     void createDevice();
 
     VkSwapchainKHR swapchain;
+    VkFormat swapchainImageFormat;
     void createSwapchain();
+
+    std::vector<VkImage> swapchainImages;
+    std::vector<VkImageView> swapchainImageViews;
+    void createImageViews();
 };
