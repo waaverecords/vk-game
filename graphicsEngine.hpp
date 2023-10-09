@@ -33,8 +33,10 @@ private:
     void pickPhysicalDevice();
 
     VkDevice device;
-    void createDevice();
-
     VkQueue graphicsQueue;
     VkQueue presentQueue;
+    void createDevice();
+
+    VkSwapchainKHR swapchain;
+    void createSwapchain();
 };

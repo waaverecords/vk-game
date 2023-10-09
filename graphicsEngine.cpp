@@ -14,9 +14,11 @@ GraphicsEngine::GraphicsEngine() {
     #endif
     pickPhysicalDevice();
     createDevice();
+    createSwapchain();
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
     #ifdef DEBUG_MODE
         Vulkan::destroyDebugMessengerExtension(instance, debugMessenger, nullptr);
@@ -220,4 +222,68 @@ void GraphicsEngine::createDevice() {
 
     vkGetDeviceQueue(device, graphicsIndex.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, presentIndex.value(), 0, &presentQueue);
+}
+
+void GraphicsEngine::createSwapchain() {
+    auto capabilities = VkSurfaceCapabilitiesKHR{};
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get surface capabilites.");
+
+    uint32_t imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0)
+        imageCount = std::min(imageCount, capabilities.maxImageCount);
+
+    uint32_t formatCount;
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get surface formats.");
+
+    std::vector<VkSurfaceFormatKHR> availableFormats(formatCount);
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, availableFormats.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get surface formats.");
+
+    auto surfaceFormat = VkSurfaceFormatKHR{};
+    for (const auto& availableFormat : availableFormats)
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            surfaceFormat = availableFormat;
+            break;
+        }
+
+    if (surfaceFormat.format == VK_FORMAT_UNDEFINED)
+        throw std::runtime_error("Failed to find a suitable surface format.");
+
+    uint32_t presentModeCount;
+    if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get surface present modes.");
+
+    std::vector<VkPresentModeKHR> availablePresentModes(presentModeCount);
+    if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, availablePresentModes.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to get surface present modes.");
+
+    auto presentMode = VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR;
+    for (const auto& availablePresentMode : availablePresentModes)
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            presentMode = availablePresentMode;
+            break;
+        }
+
+    if (surfaceFormat.format == VK_FORMAT_UNDEFINED)
+        throw std::runtime_error("Failed to find a suitable surface format.");
+
+    auto swapchainInfo = VkSwapchainCreateInfoKHR{};
+    swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainInfo.surface = surface;
+    swapchainInfo.minImageCount = imageCount;
+    swapchainInfo.imageFormat = surfaceFormat.format;
+    swapchainInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapchainInfo.imageExtent = capabilities.currentExtent;
+    swapchainInfo.imageArrayLayers = 1;
+    swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapchainInfo.preTransform = capabilities.currentTransform;
+    swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainInfo.presentMode = presentMode;
+    swapchainInfo.clipped = VK_TRUE;
+
+    if (vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &swapchain) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create swap chain.");
 }
