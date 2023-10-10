@@ -3,6 +3,7 @@
 #include "vulkan.hpp"
 #include <optional>
 #include <set>
+#include "utilities.hpp"
 
 GraphicsEngine::GraphicsEngine() {
     createWindow();
@@ -15,6 +16,7 @@ GraphicsEngine::GraphicsEngine() {
     createDevice();
     createSwapchain();
     createImageViews();
+    createGraphicsPipeline();
 }
 
 GraphicsEngine::~GraphicsEngine() {
@@ -319,4 +321,23 @@ void GraphicsEngine::createImageViews() {
         if (vkCreateImageView(device, &imageViewinfo, nullptr, &swapchainImageViews[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to create image view.");
     }
+}
+
+void GraphicsEngine::createGraphicsPipeline() {
+    const char* command = "C:/VulkanSDK/1.3.261.1/Bin/glslc.exe shaders/shader.vert -o build/shader.vert.spv";
+    if (std::system(command) != 0)
+        throw std::runtime_error("Failed to build the shader.");
+        
+    auto vertShaderCode = Utilities::readFile("build/shader.vert.spv");
+
+    auto shaderModuleInfo = VkShaderModuleCreateInfo{};
+    shaderModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleInfo.codeSize = vertShaderCode.size();
+    shaderModuleInfo.pCode = reinterpret_cast<const uint32_t*>(vertShaderCode.data());
+
+    VkShaderModule shaderModule;
+    if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create shader module.");
+
+    vkDestroyShaderModule(device, shaderModule, nullptr);
 }

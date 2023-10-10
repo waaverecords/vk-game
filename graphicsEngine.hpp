@@ -46,4 +46,6 @@ private:
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     void createImageViews();
+
+    void createGraphicsPipeline();
 };
