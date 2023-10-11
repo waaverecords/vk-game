@@ -20,6 +20,8 @@ GraphicsEngine::GraphicsEngine() {
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
     for (auto imageView : swapchainImageViews)
         vkDestroyImageView(device, imageView, nullptr);
 
@@ -301,6 +303,7 @@ void GraphicsEngine::createSwapchain() {
         throw std::runtime_error("Failed to get swapchain images.");
 
     swapchainImageFormat = surfaceFormat.format;
+    swapchainExtent = swapchainInfo.imageExtent;
 }
 
 void GraphicsEngine::createImageViews() {
@@ -338,6 +341,73 @@ void GraphicsEngine::createGraphicsPipeline() {
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &shaderModule) != VK_SUCCESS)
         throw std::runtime_error("Failed to create shader module.");
+
+    auto pipelineShaderStageInfo = VkPipelineShaderStageCreateInfo{};
+    pipelineShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    pipelineShaderStageInfo.module = shaderModule;
+    pipelineShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { pipelineShaderStageInfo };
+
+    auto vertexInputInfo = VkPipelineVertexInputStateCreateInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+    auto inputAssemblyInfo = VkPipelineInputAssemblyStateCreateInfo{};
+    inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    auto viewport = VkViewport{};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = swapchainExtent.width;
+    viewport.height = swapchainExtent.height;
+    viewport.minDepth = 0;
+    viewport.maxDepth = 0;
+
+    auto scissor = VkRect2D{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapchainExtent;
+
+    auto viewportStateInfo = VkPipelineViewportStateCreateInfo{};
+    viewportStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateInfo.viewportCount = 1;
+    viewportStateInfo.pViewports = &viewport;
+    viewportStateInfo.scissorCount = 1;
+    viewportStateInfo.pScissors = &scissor;
+
+    auto rasterizerInfo = VkPipelineRasterizationStateCreateInfo{};
+    rasterizerInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizerInfo.depthClampEnable = VK_FALSE;
+    rasterizerInfo.rasterizerDiscardEnable = VK_FALSE; // disables output to framebuffer if set to true
+    rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizerInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizerInfo.depthBiasEnable = VK_FALSE;
+    rasterizerInfo.lineWidth = 1;
+
+    auto multisampleInfo = VkPipelineMultisampleStateCreateInfo{};
+    multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampleInfo.sampleShadingEnable = VK_FALSE;
+
+    auto colorBlendAttachmentState = VkPipelineColorBlendAttachmentState{};
+    colorBlendAttachmentState.blendEnable = VK_FALSE;
+    colorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    auto colorBlendState = VkPipelineColorBlendStateCreateInfo{};
+    colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlendState.logicOpEnable = VK_FALSE;
+    colorBlendState.attachmentCount = 1;
+    colorBlendState.pAttachments = &colorBlendAttachmentState;
+
+    auto pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create pipeline layout.");
 
     vkDestroyShaderModule(device, shaderModule, nullptr);
 }

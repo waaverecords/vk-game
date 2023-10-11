@@ -41,11 +41,13 @@ private:
 
     VkSwapchainKHR swapchain;
     VkFormat swapchainImageFormat;
+    VkExtent2D swapchainExtent;
     void createSwapchain();
 
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
     void createImageViews();
 
+    VkPipelineLayout pipelineLayout;
     void createGraphicsPipeline();
 };
