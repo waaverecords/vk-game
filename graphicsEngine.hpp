@@ -48,6 +48,9 @@ private:
     std::vector<VkImageView> swapchainImageViews;
     void createImageViews();
 
+    VkRenderPass renderPass;
+    void createRenderPass();
+
     VkPipelineLayout pipelineLayout;
     void createGraphicsPipeline();
 };
