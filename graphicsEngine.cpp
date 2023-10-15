@@ -608,13 +608,12 @@ void GraphicsEngine::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
 
         // TODO: refactor shader hot reloading
-        if (swapPipelineLayout != VK_NULL_HANDLE) {
+        if (swapGraphicsPipeline != VK_NULL_HANDLE) {
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 
             vkDestroyPipeline(device, graphicsPipeline, nullptr);
             vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
-            // TODO: find why graphicsPipeline is null sometimes
             pipelineLayout = swapPipelineLayout;
             graphicsPipeline = swapGraphicsPipeline;
 
