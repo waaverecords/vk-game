@@ -155,7 +155,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::debugCallback(
         color = "\033[36;41m";
     }
 
-    std::cout << color << severity << " " << callbackData->pMessage << defaultColor << std::endl;
+    if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+        std::cout << color << severity << " " << callbackData->pMessage << defaultColor << std::endl;
 
     return VK_FALSE;
 }
@@ -360,19 +361,29 @@ void GraphicsEngine::createRenderPass() {
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
 
+    auto dependency = VkSubpassDependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
     auto renderPassInfo = VkRenderPassCreateInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = 1;
     renderPassInfo.pAttachments = &attachmentDescription;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount =1;
+    renderPassInfo.pDependencies = &dependency;
 
     if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) !=  VK_SUCCESS)
         throw std::runtime_error("Failed to create render pass.");
-
 }
 
 void GraphicsEngine::createGraphicsPipeline() {
+    // TODO: turn into a function for hot reloading shaders...
     const char* command = "C:/VulkanSDK/1.3.261.1/Bin/glslc.exe shaders/shader.vert -o build/shader.vert.spv";
     if (std::system(command) != 0)
         throw std::runtime_error("Failed to build the shader.");
@@ -394,7 +405,29 @@ void GraphicsEngine::createGraphicsPipeline() {
     pipelineShaderStageInfo.module = shaderModule;
     pipelineShaderStageInfo.pName = "main";
 
-    VkPipelineShaderStageCreateInfo shaderStages[] = { pipelineShaderStageInfo };
+    // TODO: turn into a function for hot reloading shaders...
+    command = "C:/VulkanSDK/1.3.261.1/Bin/glslc.exe shaders/shader.frag -o build/shader.frag.spv";
+    if (std::system(command) != 0)
+        throw std::runtime_error("Failed to build the shader.");
+        
+    auto fragShaderCode = Utilities::readFile("build/shader.frag.spv");
+
+    auto fShaderModuleInfo = VkShaderModuleCreateInfo{};
+    fShaderModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    fShaderModuleInfo.codeSize = fragShaderCode.size();
+    fShaderModuleInfo.pCode = reinterpret_cast<const uint32_t*>(fragShaderCode.data());
+
+    VkShaderModule fshaderModule;
+    if (vkCreateShaderModule(device, &fShaderModuleInfo, nullptr, &fshaderModule) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create shader module.");
+
+    auto fpipelineShaderStageInfo = VkPipelineShaderStageCreateInfo{};
+    fpipelineShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fpipelineShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fpipelineShaderStageInfo.module = fshaderModule;
+    fpipelineShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { pipelineShaderStageInfo, fpipelineShaderStageInfo };
 
     auto vertexInputInfo = VkPipelineVertexInputStateCreateInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -457,7 +490,7 @@ void GraphicsEngine::createGraphicsPipeline() {
 
     auto pipelineInfo = VkGraphicsPipelineCreateInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 1;
+    pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
@@ -472,6 +505,7 @@ void GraphicsEngine::createGraphicsPipeline() {
         throw std::runtime_error("Failed to create graphics pipeline.");
 
     vkDestroyShaderModule(device, shaderModule, nullptr);
+    vkDestroyShaderModule(device, fshaderModule, nullptr);
 }
 
 void GraphicsEngine::createFramebuffers() {
@@ -560,7 +594,14 @@ void GraphicsEngine::createSyncObjects() {
 
 }
 
-void GraphicsEngine::mainLoop() {}
+void GraphicsEngine::mainLoop() {
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        drawFrame();
+    }
+
+    vkDeviceWaitIdle(device);
+}
 
 void GraphicsEngine::drawFrame() {
     vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -592,4 +633,17 @@ void GraphicsEngine::drawFrame() {
 
     if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS)
         throw std::runtime_error("Failed to submit the command buffer to the queue.");
+
+    VkSwapchainKHR swapchains[] = {swapchain};
+
+    auto presentInfo = VkPresentInfoKHR{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapchains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    if (vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS)
+        throw std::runtime_error("Failed to present the image.");
 }

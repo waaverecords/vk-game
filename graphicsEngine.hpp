@@ -12,6 +12,8 @@ public:
     GraphicsEngine();
     ~GraphicsEngine();
 
+    void mainLoop();
+
 private:
     // TODO: move window to something else?
     // let the engine just be the interface to vulkan
@@ -72,8 +74,6 @@ private:
     VkSemaphore renderFinishedSemaphore;
     VkFence inFlightFence;
     void createSyncObjects();
-
-    void mainLoop();
 
     void drawFrame();
 };
