@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <optional>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -34,6 +35,7 @@ private:
     VkPhysicalDevice physicalDevice;
     void pickPhysicalDevice();
 
+    std::optional<uint32_t> graphicsQueueIndex;
     VkDevice device;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
@@ -57,4 +59,10 @@ private:
 
     std::vector<VkFramebuffer> swapchainFramebuffers;
     void createFramebuffers();
+
+    VkCommandPool commandPool;
+    void createCommandPool();
+
+    VkCommandBuffer commandBuffer;
+    void createCommandBuffer();
 };

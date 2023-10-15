@@ -1,7 +1,6 @@
 #include "graphicsEngine.hpp"
 #include <iostream>
 #include "vulkan.hpp"
-#include <optional>
 #include <set>
 #include "utilities.hpp"
 
@@ -19,12 +18,16 @@ GraphicsEngine::GraphicsEngine() {
     createRenderPass();
     createGraphicsPipeline();
     createFramebuffers();
+    createCommandPool();
+    createCommandBuffer();
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
     for (auto framebuffer : swapchainFramebuffers)
         vkDestroyFramebuffer(device, framebuffer, nullptr);
-        
+
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
@@ -186,12 +189,11 @@ void GraphicsEngine::createDevice() {
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
-    std::optional<uint32_t> graphicsIndex;
     std::optional<uint32_t> presentIndex;
     
     for (auto i = 0; i < queueFamilies.size(); i++) {
         if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            graphicsIndex = i;
+            graphicsQueueIndex = i;
         }
         
         VkBool32 presentSupported = false;
@@ -199,14 +201,14 @@ void GraphicsEngine::createDevice() {
         if (presentSupported)
             presentIndex = i;
 
-        if (graphicsIndex.has_value() && presentIndex.has_value())
+        if (graphicsQueueIndex.has_value() && presentIndex.has_value())
             break;
     }
 
-    if (!graphicsIndex.has_value() || !presentIndex.has_value())
+    if (!graphicsQueueIndex.has_value() || !presentIndex.has_value())
         throw std::runtime_error("Failed to find a queue family supporting graphics and present operations.");
 
-    std::set<uint32_t> queueIndices = {graphicsIndex.value(), presentIndex.value()};
+    std::set<uint32_t> queueIndices = {graphicsQueueIndex.value(), presentIndex.value()};
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
     auto queuePriority = 1.0f;
 
@@ -234,7 +236,7 @@ void GraphicsEngine::createDevice() {
     if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
         throw std::runtime_error("Failed to create logical device.");
 
-    vkGetDeviceQueue(device, graphicsIndex.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, graphicsQueueIndex.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, presentIndex.value(), 0, &presentQueue);
 }
 
@@ -485,4 +487,25 @@ void GraphicsEngine::createFramebuffers() {
         if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS)
             throw std::runtime_error("Failed to create framebuffer.");
     }
+}
+
+void GraphicsEngine::createCommandPool() {
+    auto commandPoolInfo = VkCommandPoolCreateInfo{};
+    commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolInfo.queueFamilyIndex = graphicsQueueIndex.value();
+
+    if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create command pool.");
+}
+
+void GraphicsEngine::createCommandBuffer() {
+    auto allocateInfo = VkCommandBufferAllocateInfo{};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocateInfo.commandPool = commandPool;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(device, &allocateInfo, &commandBuffer) != VK_SUCCESS)
+        throw std::runtime_error("Failed to allocate command buffer.");
 }
