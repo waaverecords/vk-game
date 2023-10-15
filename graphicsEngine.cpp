@@ -3,6 +3,7 @@
 #include "vulkan.hpp"
 #include <set>
 #include "utilities.hpp"
+#include <functional>
 
 GraphicsEngine::GraphicsEngine() {
     createWindow();
@@ -16,14 +17,23 @@ GraphicsEngine::GraphicsEngine() {
     createSwapchain();
     createImageViews();
     createRenderPass();
-    createGraphicsPipeline();
+    createGraphicsPipeline(pipelineLayout, graphicsPipeline);
     createFramebuffers();
     createCommandPool();
     createCommandBuffer();
     createSyncObjects();
+
+    std::vector<std::string> a = {
+        "shaders/shader.vert",
+        "shaders/shader.frag",
+    };
+    fileWatcher = std::make_unique<Utilities::FileWatcher>(a, std::bind(&onChangedFile, this, std::placeholders::_1));
+    fileWatcher->start();
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    fileWatcher.reset();
+
     vkDestroyFence(device, inFlightFence, nullptr);
     vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
     vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
@@ -61,6 +71,8 @@ void GraphicsEngine::createWindow() {
         glfwTerminate();
         throw std::runtime_error("Failed to create window.");
     }
+
+    glfwSetWindowPos(window, 1920 + 400, 350);
 }
 
 void GraphicsEngine::createSurface() {
@@ -155,8 +167,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL GraphicsEngine::debugCallback(
         color = "\033[36;41m";
     }
 
-    if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        std::cout << color << severity << " " << callbackData->pMessage << defaultColor << std::endl;
+    std::cout << color << severity << " " << callbackData->pMessage << defaultColor << std::endl;
 
     return VK_FALSE;
 }
@@ -382,7 +393,7 @@ void GraphicsEngine::createRenderPass() {
         throw std::runtime_error("Failed to create render pass.");
 }
 
-void GraphicsEngine::createGraphicsPipeline() {
+void GraphicsEngine::createGraphicsPipeline(VkPipelineLayout& layout, VkPipeline& pipeline) {
     // TODO: turn into a function for hot reloading shaders...
     const char* command = "C:/VulkanSDK/1.3.261.1/Bin/glslc.exe shaders/shader.vert -o build/shader.vert.spv";
     if (std::system(command) != 0)
@@ -485,7 +496,7 @@ void GraphicsEngine::createGraphicsPipeline() {
     auto pipelineLayoutInfo = VkPipelineLayoutCreateInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &layout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout.");
 
     auto pipelineInfo = VkGraphicsPipelineCreateInfo{};
@@ -501,7 +512,7 @@ void GraphicsEngine::createGraphicsPipeline() {
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.renderPass = renderPass;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
         throw std::runtime_error("Failed to create graphics pipeline.");
 
     vkDestroyShaderModule(device, shaderModule, nullptr);
@@ -591,11 +602,26 @@ void GraphicsEngine::createSyncObjects() {
         vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
         vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS)
         throw std::runtime_error("Failed to create sync objects.");
-
 }
 
 void GraphicsEngine::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
+
+        // TODO: refactor shader hot reloading
+        if (swapPipelineLayout != VK_NULL_HANDLE) {
+            vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+
+            vkDestroyPipeline(device, graphicsPipeline, nullptr);
+            vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+
+            // TODO: find why graphicsPipeline is null sometimes
+            pipelineLayout = swapPipelineLayout;
+            graphicsPipeline = swapGraphicsPipeline;
+
+            swapPipelineLayout = VK_NULL_HANDLE;
+            swapGraphicsPipeline = VK_NULL_HANDLE;
+        }
+
         glfwPollEvents();
         drawFrame();
     }
@@ -646,4 +672,9 @@ void GraphicsEngine::drawFrame() {
 
     if (vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS)
         throw std::runtime_error("Failed to present the image.");
+}
+
+void GraphicsEngine::onChangedFile(const std::string& filename) {
+    std::cout << filename << std::endl;
+    createGraphicsPipeline(swapPipelineLayout, swapGraphicsPipeline);
 }

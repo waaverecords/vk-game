@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <optional>
+#include <memory>
+#include "utilities.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -57,7 +59,11 @@ private:
 
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
-    void createGraphicsPipeline();
+
+    VkPipelineLayout swapPipelineLayout = VK_NULL_HANDLE;
+    VkPipeline swapGraphicsPipeline = VK_NULL_HANDLE;
+
+    void createGraphicsPipeline(VkPipelineLayout& layout, VkPipeline& pipeline);
 
     std::vector<VkFramebuffer> swapchainFramebuffers;
     void createFramebuffers();
@@ -76,4 +82,7 @@ private:
     void createSyncObjects();
 
     void drawFrame();
+
+    std::unique_ptr<Utilities::FileWatcher> fileWatcher;
+    void onChangedFile(const std::string& filename);
 };
