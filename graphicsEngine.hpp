@@ -65,4 +65,15 @@ private:
 
     VkCommandBuffer commandBuffer;
     void createCommandBuffer();
+
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
+    void createSyncObjects();
+
+    void mainLoop();
+
+    void drawFrame();
 };
