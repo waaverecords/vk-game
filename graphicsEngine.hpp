@@ -52,5 +52,9 @@ private:
     void createRenderPass();
 
     VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
     void createGraphicsPipeline();
+
+    std::vector<VkFramebuffer> swapchainFramebuffers;
+    void createFramebuffers();
 };

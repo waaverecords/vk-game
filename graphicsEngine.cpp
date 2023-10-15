@@ -18,9 +18,14 @@ GraphicsEngine::GraphicsEngine() {
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFramebuffers();
 }
 
 GraphicsEngine::~GraphicsEngine() {
+    for (auto framebuffer : swapchainFramebuffers)
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+        
+    vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
@@ -357,6 +362,7 @@ void GraphicsEngine::createRenderPass() {
 
     if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) !=  VK_SUCCESS)
         throw std::runtime_error("Failed to create render pass.");
+
 }
 
 void GraphicsEngine::createGraphicsPipeline() {
@@ -442,5 +448,41 @@ void GraphicsEngine::createGraphicsPipeline() {
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw std::runtime_error("Failed to create pipeline layout.");
 
+    auto pipelineInfo = VkGraphicsPipelineCreateInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 1;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+    pipelineInfo.pViewportState = &viewportStateInfo;
+    pipelineInfo.pRasterizationState = &rasterizerInfo;
+    pipelineInfo.pMultisampleState = &multisampleInfo;
+    pipelineInfo.pColorBlendState = &colorBlendState;
+    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.renderPass = renderPass;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create graphics pipeline.");
+
     vkDestroyShaderModule(device, shaderModule, nullptr);
+}
+
+void GraphicsEngine::createFramebuffers() {
+    swapchainFramebuffers.resize(swapchainImageViews.size());
+
+    for (auto i = 0; i < swapchainImageViews.size(); i++) {
+        VkImageView imageViews[] = { swapchainImageViews[i] };
+
+        auto framebufferInfo = VkFramebufferCreateInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = imageViews;
+        framebufferInfo.width = swapchainExtent.width;
+        framebufferInfo.height = swapchainExtent.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS)
+            throw std::runtime_error("Failed to create framebuffer.");
+    }
 }
