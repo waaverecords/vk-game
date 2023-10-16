@@ -42,17 +42,12 @@ GraphicsEngine::~GraphicsEngine() {
 
     vkDestroyCommandPool(device, commandPool, nullptr);
 
-    for (auto framebuffer : swapchainFramebuffers)
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    cleanupSwapchain();
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
-
-    for (auto imageView : swapchainImageViews)
-        vkDestroyImageView(device, imageView, nullptr);
-
-    vkDestroySwapchainKHR(device, swapchain, nullptr);
+    
     vkDestroyDevice(device, nullptr);
     #ifdef DEBUG_MODE
         Vulkan::destroyDebugMessengerExtension(instance, debugMessenger, nullptr);
@@ -332,6 +327,33 @@ void GraphicsEngine::createSwapchain() {
 
     swapchainImageFormat = surfaceFormat.format;
     swapchainExtent = swapchainInfo.imageExtent;
+}
+void GraphicsEngine::recreateSwapchain() {
+    auto width = 0;
+    auto height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(device);
+
+    cleanupSwapchain();
+
+    createSwapchain();
+    createImageViews();
+    createFramebuffers();
+}
+
+void GraphicsEngine::cleanupSwapchain() {
+    for (auto framebuffer : swapchainFramebuffers)
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+
+    for (auto imageView : swapchainImageViews)
+        vkDestroyImageView(device, imageView, nullptr);
+
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
 }
 
 void GraphicsEngine::createImageViews() {
@@ -639,11 +661,19 @@ void GraphicsEngine::mainLoop() {
 
 void GraphicsEngine::drawFrame() {
     vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex;
-    if (vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex) != VK_SUCCESS)
+    auto result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapchain();
+        return;
+    }
+
+    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         throw std::runtime_error("Failed to acquire next image.");
+
+    vkResetFences(device, 1, &inFlightFences[currentFrame]);
 
     if (vkResetCommandBuffer(commandBuffers[currentFrame], 0) != VK_SUCCESS)
         throw std::runtime_error("Failed to reset command buffer.");
@@ -678,7 +708,11 @@ void GraphicsEngine::drawFrame() {
     presentInfo.pSwapchains = swapchains;
     presentInfo.pImageIndices = &imageIndex;
 
-    if (vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS)
+    result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        recreateSwapchain();
+    else if (result != VK_SUCCESS)
         throw std::runtime_error("Failed to present the image.");
 
     currentFrame = (currentFrame + 1) % maxFramesInFlight;

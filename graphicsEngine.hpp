@@ -52,6 +52,8 @@ private:
     VkFormat swapchainImageFormat;
     VkExtent2D swapchainExtent;
     void createSwapchain();
+    void recreateSwapchain();
+    void cleanupSwapchain();
 
     std::vector<VkImage> swapchainImages;
     std::vector<VkImageView> swapchainImageViews;
