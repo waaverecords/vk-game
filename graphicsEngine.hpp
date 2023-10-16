@@ -17,6 +17,9 @@ public:
     void mainLoop();
 
 private:
+    const int maxFramesInFlight = 2;
+    uint32_t currentFrame = 0;
+
     // TODO: move window to something else?
     // let the engine just be the interface to vulkan
     // and make the game loop outside, such that there is a draw function that can be called
@@ -60,6 +63,7 @@ private:
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
+    // TODO: rename or move once asset manager / build is created
     VkPipelineLayout swapPipelineLayout = VK_NULL_HANDLE;
     VkPipeline swapGraphicsPipeline = VK_NULL_HANDLE;
 
@@ -71,14 +75,14 @@ private:
     VkCommandPool commandPool;
     void createCommandPool();
 
-    VkCommandBuffer commandBuffer;
+    std::vector<VkCommandBuffer> commandBuffers;
     void createCommandBuffer();
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
-    VkSemaphore imageAvailableSemaphore;
-    VkSemaphore renderFinishedSemaphore;
-    VkFence inFlightFence;
+    std::vector<VkSemaphore> imageAvailableSemaphores;
+    std::vector<VkSemaphore> renderFinishedSemaphores;
+    std::vector<VkFence> inFlightFences;
     void createSyncObjects();
 
     void drawFrame();
